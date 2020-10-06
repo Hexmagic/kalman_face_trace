@@ -50,10 +50,11 @@ def run():
                 object_controller.update(detects)  # 核心
             # 1.2.2 此帧无检测
             else:
-                object_controller.update_without_detection()  # 核心
-
+                object_controller.update_without_detection(frame)  # 核心
+        cv2.imshow('Track Bugs', frame)
         # deal with acceptor
         # ask acceptor do something
+        cv2.waitKey(20)
         cur_frame_counter += 1
         detection_loop_counter += 1
         k = cv2.waitKey(50) & 0xff

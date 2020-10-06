@@ -57,44 +57,44 @@ class Detector(object):
         #    cv2.imshow('bgsub', fgmask)
 
         # Detect edges
-        edges = cv2.Canny(fgmask, 50, 190, 3)
+        ret, thresh = cv2.threshold(gray, 127, 255, 0)
+        edges = cv2.Canny(thresh, 50, 190, 3)
 
         #if (debug == 1):
         #    cv2.imshow('Edges', edges)
 
         # Retain only edges within the threshold
-        ret, thresh = cv2.threshold(edges, 127, 255, 0)
+        
 
         # Find contours
-        contours, hierarchy = cv2.findContours(thresh,
-                                                  cv2.RETR_EXTERNAL,
-                                                  cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL,
+                                               cv2.CHAIN_APPROX_SIMPLE)
 
         #if (debug == 0):
         #    cv2.imshow('thresh', thresh)
 
-        centers = []  # vector of object centroids in a frame
+        detections = []  # vector of object centroids in a frame
         # we only care about centroids with size of bug in this example
         # recommended to be tunned based on expected object size for
         # improved performance
-        blob_radius_thresh = 7
+        blob_radius_thresh = 8
         # Find centroid for each valid contours
         for cnt in contours:
             try:
                 # Calculate and draw circle
-                (x, y), radius = cv2.minEnclosingCircle(cnt)
-                centeroid = (int(x), int(y))
-                radius = int(radius)
-                if (radius >= blob_radius_thresh):
-                    radius = 8
-                    cv2.circle(frame, centeroid, radius, (0, 255, 0), 2)
-                    b = np.array([[x], [y]])
-                    centers.append(np.round(b))
+                x, y, w, h = cv2.boundingRect(cnt)
+                if (w >= blob_radius_thresh):
+                    w=h=16                    
+                    #cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0),
+                    #              2)
+                    detections.append({'bbox': [x, y, x+w, y+h]})
             except ZeroDivisionError:
                 pass
 
         # show contours of tracking objects
-        cv2.imshow('Track Bugs', frame)
+        #cv2.imshow('Track Bugs', frame)
 
-        return centers
+        return detections
+
+
 # faceboxes

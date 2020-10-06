@@ -8,33 +8,37 @@ import numpy as np
 import cv2
 import os
 import sys
-from config import MAX_NUM_MISSING_PERMISSION,MAX_PIXELS_DIST_BETWEEN_PREDICTED_AND_DETECTED,BBXES_IDENTICAL_IOS_TRHESHOLD
+from config import MAX_NUM_MISSING_PERMISSION, MAX_PIXELS_DIST_BETWEEN_PREDICTED_AND_DETECTED, BBXES_IDENTICAL_IOS_TRHESHOLD
 import util
 
 from scipy.optimize import linear_sum_assignment
 
 from instance import Instance
 
+
 class MultipleObjectController(object):
     def __init__(self):
         # instances: 关于instance类的list
-        self.instances = []         # [instance1, instance2, ..., instance_n]        
-        
+        self.instances = []  # [instance1, instance2, ..., instance_n]
+        self.prob_instances = []
 
     def update(self, detections):
         # update with detection
         # 用detection的结果结合tracking(prediction)的结果，更新物体运动状态
         self.assign_detections_to_tracks(detections)
 
-    def update_without_detection(self):
+    def update_without_detection(self, frame):
         # 只prediction，没有detection辅助correction
         # step 1: update bbx by prediction
-        for instance in self.instances:     # 辅助
-            bbx = instance.get_predicted_bbx()
-            tag = instance.get_latest_record()[0]
-            # draw something....
-            instance.num_misses += 1        # 此行最重要
+        for instance in self.instances:  # 辅助
+            [a, b, c, d] = instance.get_predicted_bbox()
+            #tag = instance.get_latest_record()[0]
+            # draw something...
+            #[a, b, c, d] = map(int,util.centroid_to_bbx(center))
+            cv2.rectangle(frame, (a, b), (c, d), (0, 255, 0), 2)
+            instance.num_misses += 1  # 此行最重要
         # step 2: remove dead bboxes
+
         self.remove_dead_instances()
 
     ###########
@@ -61,7 +65,7 @@ class MultipleObjectController(object):
                 instance = Instance()
                 tag = list(det.keys())[0]
                 bbox = det[tag]
-                instance.add_to_track(tag, bbox)        # 辅助
+                instance.add_to_track(tag, bbox)  # 辅助
                 self.instances.append(instance)
         # B.
         # B.1
@@ -70,10 +74,12 @@ class MultipleObjectController(object):
         costs = np.zeros(shape=(len(self.instances), len(detections)))
         for i, instance in enumerate(self.instances):
             # Here, by using Kalman Filter, we predict an bbx for each instance
-            predicted_bbx = instance.get_predicted_bbx()
+            predicted_bbx = instance.get_predicted_bbox()
             for j, det in enumerate(detections):
                 detected_bbx = list(det.values())[0]
-                dist = util.dist_btwn_bbx_centroids(predicted_bbx, detected_bbx)
+                dist = util.dist_btwn_bbx_centroids(
+                    util.bbx_to_lrtb(predicted_bbx),
+                    util.bbx_to_lrtb(detected_bbx))
                 max_dist = MAX_PIXELS_DIST_BETWEEN_PREDICTED_AND_DETECTED
                 if dist > max_dist:
                     dist = 1000  # sys.maxsize
@@ -100,7 +106,8 @@ class MultipleObjectController(object):
             if costs[instance_id, detection_id] != 1000:  # sys.maxsize:
                 assigned_detection_id.append(detection_id)
                 self.instances[instance_id].has_match = True
-                self.instances[instance_id].correct_track(detections[detection_id])
+                self.instances[instance_id].correct_track(
+                    detections[detection_id]['bbox'])
                 self.instances[instance_id].num_misses = 0
 
         # B.4
@@ -114,7 +121,8 @@ class MultipleObjectController(object):
         self.remove_dead_instances()
 
         # get unassigned detection ids
-        unassigned_detection_id = list(set(range(0, len(detections))) - set(assigned_detection_id))
+        unassigned_detection_id = list(
+            set(range(0, len(detections))) - set(assigned_detection_id))
         for idx in range(0, len(detections)):
             if idx in unassigned_detection_id:
                 # det: {'tag' : [bbx_left, bbx_right, bbx_up, bbx_bottom]}
@@ -126,17 +134,29 @@ class MultipleObjectController(object):
                     instance.add_to_track(tag, bbx)
                     self.instances.append(instance)
 
-
     def is_good_detection(self, bbx):
         #
         for instance in self.instances:
             if util.check_bbxes_identical_by_ios(
-                instance.get_latest_bbx(),
-                bbx,
-                BBXES_IDENTICAL_IOS_TRHESHOLD
-            ):
+                    instance.get_latest_bbx(), bbx,
+                    BBXES_IDENTICAL_IOS_TRHESHOLD):
                 return False
         return True
 
     def remove_dead_instances(self):
-        self.instances = ['''删除掉这些框''']
+        instances = []
+        for instance in self.instances:
+            if instance.num_misses < instance.max_misses:
+                instances.append(instance)
+        prob_instances = []
+        for p in self.prob_instances:
+            if p.num_misses < p.max_misses:
+                prob_instances.append(p)
+        self.instances = instances
+        self.prob_instances = prob_instances
+
+    def probation_to_instances(self):
+        for idx, p in enumerate(self.prob_instances):
+            if p.prob_times > p.max_probation:
+                self.instances.append(p)
+                self.prob_instances.pop(idx)
