@@ -72,6 +72,7 @@ class MultipleObjectController(object):
         # 算距离：检测框与预测框之间的距离
         # costs[i, j]: 每一个预测框与检测框之间的距离
         costs = np.zeros(shape=(len(self.instances), len(detections)))
+        matched = 0
         for i, instance in enumerate(self.instances):
             # Here, by using Kalman Filter, we predict an bbx for each instance
             predicted_bbx = instance.get_predicted_bbox()
@@ -106,10 +107,11 @@ class MultipleObjectController(object):
             if costs[instance_id, detection_id] != 1000:  # sys.maxsize:
                 assigned_detection_id.append(detection_id)
                 self.instances[instance_id].has_match = True
+                matched +=1
                 self.instances[instance_id].correct_track(
                     detections[detection_id]['bbox'])
                 self.instances[instance_id].num_misses = 0
-
+        print(f'matched {matched}')
         # B.4
         # keep track of how many times a track has gone unassigned
         for instance in self.instances:

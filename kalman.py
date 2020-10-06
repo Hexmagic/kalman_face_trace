@@ -35,7 +35,7 @@ class KalmanFilter(object):
         self.kalman.processNoiseCov = np.array(
             [[0.1, 0, 0, 0, 0, 0], [0, 0.1, 0, 0, 0, 0],
              [0, 0, .5, 0, 0, 0], [0, 0, 0, .5, 0, 0], [0, 0, 0, 0, 0.1, 0],
-             [0, 0, 0, 0, 0, 0.1]], np.float32)
+             [0, 0, 0, 0, 0, 0.1]], np.float32)*1e-3
         self.kalman.measurementNoiseCov = np.array(
             [[0.01, 0, 0, 0], [0, 0.01, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
             np.float32)
