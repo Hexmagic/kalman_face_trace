@@ -36,7 +36,7 @@ class MultipleObjectController(object):
             # draw something...
             #[a, b, c, d] = map(int,util.centroid_to_bbx(center))
             cv2.rectangle(frame, (a, b), (c, d), (0, 255, 0), 2)
-            instance.num_misses += 1  # 此行最重要
+            #instance.num_misses += 1  # 此行最重要
         # step 2: remove dead bboxes
 
         self.remove_dead_instances()
@@ -111,7 +111,7 @@ class MultipleObjectController(object):
                 self.instances[instance_id].correct_track(
                     detections[detection_id]['bbox'])
                 self.instances[instance_id].num_misses = 0
-        print(f'matched {matched}')
+        #print(f'matched {matched}')
         # B.4
         # keep track of how many times a track has gone unassigned
         for instance in self.instances:

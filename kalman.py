@@ -16,7 +16,7 @@ class KalmanFilter(object):
             dynamParams=self.dynamParamsSize,  # predict = 6,
             measureParams=self.measureParamsSize)  # meausure=4
         self.first_run = True
-        dT = 1. / 20
+        dT = 1. / 60
         # Transiftion Matrix
         self.kalman.transitionMatrix = np.array(
             [
@@ -30,14 +30,14 @@ class KalmanFilter(object):
         # Measurement Matrix
         self.kalman.measurementMatrix = np.array(
             [[0.1, 0, 0, 0, 0, 0], [0, 0.1, 0, 0, 0, 0], [0, 0, 0, 0, 0.1, 0],
-             [0, 0, 0, 0, 0, 0.1]], np.float32)
+             [0, 0, 0, 0, 0, 0.01]], np.float32)
         # noise: prediction  covariance matrix (rough number)
         self.kalman.processNoiseCov = np.array(
-            [[0.1, 0, 0, 0, 0, 0], [0, 0.1, 0, 0, 0, 0],
-             [0, 0, .5, 0, 0, 0], [0, 0, 0, .5, 0, 0], [0, 0, 0, 0, 0.1, 0],
-             [0, 0, 0, 0, 0, 0.1]], np.float32)*1e-3
+            [[0.1, 0, 0, 0, 0, 0], [0, 0.2, 0, 0, 0, 0],
+             [0, 0, 2, 0, 0, 0], [0, 0, 0, 5, 0, 0], [0, 0, 0, 0, 1e-5, 0],
+             [0, 0, 0, 0, 0, 1e-4]], np.float32)*1e-7
         self.kalman.measurementNoiseCov = np.array(
-            [[0.01, 0, 0, 0], [0, 0.01, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+            [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0.1, 0], [0, 0, 0, 0.1]],
             np.float32)
         # np.eye(4, dtype=np.float32) * 0.1
 

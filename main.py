@@ -1,22 +1,22 @@
-from torch.tensor import Tensor
-from utils.box_utils import decode
-from utils.nms_wrapper import nms
-from layers.functions.prior_box import PriorBox
-from torchvision.transforms import ToTensor
-from torch.autograd import Variable
-import cv2
-
+import copy
 import os
+
 import cv2
 import numpy as np
+import torch
+from torch.autograd import Variable
+from torch.tensor import Tensor
+from torchvision.transforms import ToTensor
 
 from config import NUM_JUMP_FRAMES
+from data import cfg
 from detector import Detector  # Face Detector
-from multiple_object_controller import MultipleObjectController
+from layers.functions.prior_box import PriorBox
 #from acceptor import Acceptor
 from models.faceboxes import FaceBoxes
-from data import cfg
-import torch
+from multiple_object_controller import MultipleObjectController
+from utils.box_utils import decode
+from utils.nms_wrapper import nms
 
 
 def check_keys(model, pretrained_state_dict):
@@ -79,7 +79,7 @@ def detect(detector, frame):
     scores = conf.squeeze(0).data.cpu().numpy()[:, 1]
 
     # ignore low scores
-    inds = np.where(scores > 0.05)[0]
+    inds = np.where(scores > 0.5)[0]
     boxes = boxes[inds]
     scores = scores[inds]
 
@@ -92,7 +92,7 @@ def detect(detector, frame):
     dets = np.hstack((boxes, scores[:, np.newaxis])).astype(
         np.float32, copy=False)
     #keep = py_cpu_nms(dets, args.nms_threshold)
-    keep = nms(dets, 0.3, force_cpu=True)
+    keep = nms(dets, 0.5, force_cpu=True)
     dets = dets[keep, :]
 
     # keep top-K faster NMS
@@ -126,13 +126,13 @@ def run():
     #                  b. 此帧无检测（只跟踪，pure predicton）
     cur_frame_counter = 0
     detection_loop_counter = 0
-    #cap = cv2.VideoCapture('bug.mp4')
-    i = 0
+    cap = cv2.VideoCapture('demo.mp4')
+    import time
     while True:
         # 0. get frame
-        i += 1
-        #ret, frame = cap.read()
-        frame = cv2.imread('test.jpg')
+        ret, ori_frame = cap.read()
+        frame = copy.copy(ori_frame)
+        #frame = cv2.imread('test.jpg')
         # 1.1 每帧都检测
         if not NUM_JUMP_FRAMES:
             detects = detector.detect(frame)
@@ -141,7 +141,7 @@ def run():
             # 1.2 隔帧检测
             # 1.2.1 此帧有检测
             if detection_loop_counter % NUM_JUMP_FRAMES == 0:
-                detection_loop_counter = 0
+                #detection_loop_counter = 0
                 detects = detect(detector, frame)
                 for det in detects:
                     x,y,r,b = det['bbox']
@@ -150,13 +150,13 @@ def run():
             # 1.2.2 此帧无检测
             else:
                 object_controller.update_without_detection(frame)  # 核心
-        cv2.imshow('Track Bugs', frame)
+        cv2.imshow('Trace', frame)
+        #cv2.imshow('Origin',ori_frame)
         # deal with acceptor
-        # ask acceptor do something
-        cv2.waitKey(20)
-        cur_frame_counter += 1
         detection_loop_counter += 1
-        k = cv2.waitKey(50) & 0xff
+        cv2.imwrite(f'output/{detection_loop_counter}.jpg',frame)
+        #time.sleep(0.05)
+        k = cv2.waitKey(5) & 0xff
         if k == 27:  # 'esc' key has been pressed, exit program.
             break
         if k == 112:  # 'p' has been pressed. this will pause/resume the code.
